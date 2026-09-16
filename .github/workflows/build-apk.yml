@@ -2,7 +2,7 @@ name: Build Android APK
 
 on:
   push:
-    branches: [ main, v17-final-build ]
+    branches: [ main ]
   workflow_dispatch:
 
 jobs:
@@ -19,14 +19,9 @@ jobs:
           gradle-version: '8.9'
       - name: Restore bundled web app
         run: |
-          python3 - <<'PY'
-          import base64, gzip, pathlib
-          root = pathlib.Path('app/src/main/assets')
-          data = (root / 'index.html.gz.b64').read_text().strip()
-          html = gzip.decompress(base64.b64decode(data))
-          (root / 'index.html').write_bytes(html)
-          print('restored', len(html), 'bytes')
-          PY
+          base64 --decode app/src/main/assets/index.html.gz.b64 > /tmp/index.html.gz
+          gzip --decompress --stdout /tmp/index.html.gz > app/src/main/assets/index.html
+          wc -c app/src/main/assets/index.html
       - name: Verify bundled web app
         run: |
           test "$(wc -c < app/src/main/assets/index.html)" -eq 137903
