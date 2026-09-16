@@ -2,7 +2,7 @@ name: Build Android APK
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, v17-final-build ]
   workflow_dispatch:
 
 jobs:
@@ -17,9 +17,26 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.9'
+      - name: Restore bundled web app
+        run: |
+          python3 - <<'PY'
+          import base64, gzip, pathlib
+          root = pathlib.Path('app/src/main/assets')
+          data = (root / 'index.html.gz.b64').read_text().strip()
+          html = gzip.decompress(base64.b64decode(data))
+          (root / 'index.html').write_bytes(html)
+          print('restored', len(html), 'bytes')
+          PY
+      - name: Verify bundled web app
+        run: |
+          test "$(wc -c < app/src/main/assets/index.html)" -eq 137903
+          test "$(sha256sum app/src/main/assets/index.html | cut -d' ' -f1)" = "f125c6ada82442e4ca2dcd29ce2c8c2aeb8d65a6508f2e7244edfe57f547bcce"
+          grep -q "backupFileInput" app/src/main/assets/index.html
+          grep -q "금강마을 에어컨 설치비" app/src/main/assets/index.html
+          grep -q "variableExpenseTotal" app/src/main/assets/index.html
       - name: Build debug APK
         run: gradle assembleDebug
       - uses: actions/upload-artifact@v4
         with:
-          name: 우리집-가계부-debug-apk
+          name: 우리집-가계부-v17-final-apk
           path: app/build/outputs/apk/debug/app-debug.apk
