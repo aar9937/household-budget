@@ -5,10 +5,10 @@ android {
     compileSdk 35
 
     defaultConfig {
-        applicationId 'com.openai.ourhomebudge5'
+        applicationId 'com.openai.ourhomebudget.v17'
         minSdk 26
         targetSdk 35
-        versionCode 16
-        versionName '16.0'
+        versionCode 17
+        versionName '17.0'
     }
 }
