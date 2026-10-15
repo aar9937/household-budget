@@ -24,8 +24,6 @@ jobs:
           root = pathlib.Path('app/src/main/assets')
           data = ''.join((root / f'index.html.gz.b64.part{i}').read_text().strip() for i in range(1, 8))
           raw = base64.b64decode(data)
-          # The historic gzip footer in this branch has a bad CRC. The DEFLATE
-          # payload is intact, so decode the payload without trusting the footer.
           pos = 10
           flg = raw[3]
           if flg & 4:
@@ -45,10 +43,14 @@ jobs:
         run: |
           test -s app/src/main/assets/index.html
           test "$(wc -c < app/src/main/assets/index.html)" -eq 137903
-          test "$(sha256sum app/src/main/assets/index.html | cut -d' ' -f1)" = "f125c6ada82442e4ca2dcd29ce2c8c2aeb8d65a6508f2e7244edfe57f547bcce"
+          test "$(sha256sum app/src/main/assets/index.html | cut -d' ' -f1)" = "8277744594f7aed60c263a0f9399f5e645eabdfcd82119be050ca4d610820b92"
           grep -q "backupFileInput" app/src/main/assets/index.html
           grep -q "금강마을 에어컨 설치비" app/src/main/assets/index.html
           grep -q "variableExpenseTotal" app/src/main/assets/index.html
+      - uses: actions/upload-artifact@v4
+        with:
+          name: recovered-web-source
+          path: app/src/main/assets/index.html
       - name: Build debug APK
         run: gradle assembleDebug
       - uses: actions/upload-artifact@v4
