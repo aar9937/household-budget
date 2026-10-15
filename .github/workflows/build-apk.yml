@@ -17,7 +17,7 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.9'
-      - name: Restore bundled web app
+      - name: Restore bundled web app and v21 module
         run: |
           python3 - <<'PY'
           import base64, pathlib, zlib, hashlib
@@ -37,23 +37,25 @@ jobs:
           dec = zlib.decompressobj(-zlib.MAX_WBITS)
           html = dec.decompress(raw[pos:-8]) + dec.flush()
           (root / 'index.html').write_bytes(html)
-          print('restored', len(html), 'bytes', hashlib.sha256(html).hexdigest())
+          js64 = ''.join((root / f'v21.js.b64.part{i}').read_text().strip() for i in range(0, 6))
+          js = base64.b64decode(js64)
+          (root / 'v21.js').write_bytes(js)
+          print('restored html', len(html), hashlib.sha256(html).hexdigest())
+          print('restored v21.js', len(js), hashlib.sha256(js).hexdigest())
           PY
       - name: Verify bundled web app
         run: |
           test -s app/src/main/assets/index.html
           test "$(wc -c < app/src/main/assets/index.html)" -eq 137903
           test "$(sha256sum app/src/main/assets/index.html | cut -d' ' -f1)" = "8277744594f7aed60c263a0f9399f5e645eabdfcd82119be050ca4d610820b92"
+          test "$(wc -c < app/src/main/assets/v21.js)" -eq 21425
           grep -q "backupFileInput" app/src/main/assets/index.html
-          grep -q "금강마을 에어컨 설치비" app/src/main/assets/index.html
           grep -q "variableExpenseTotal" app/src/main/assets/index.html
-      - uses: actions/upload-artifact@v4
-        with:
-          name: recovered-web-source
-          path: app/src/main/assets/index.html
+          grep -q "PDF 통장내역 가져오기" app/src/main/assets/v21.js
+          grep -q "카드·은행 알림 자동수집" app/src/main/assets/v21.js
       - name: Build debug APK
         run: gradle assembleDebug
       - uses: actions/upload-artifact@v4
         with:
-          name: 우리집-가계부-v21-test-apk
+          name: 우리집-가계부-v21-autoimport-apk
           path: app/build/outputs/apk/debug/app-debug.apk
