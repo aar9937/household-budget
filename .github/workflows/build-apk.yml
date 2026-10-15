@@ -2,7 +2,7 @@ name: Build Android APK
 
 on:
   push:
-    branches: [ main, v17-final-build ]
+    branches: [ main, v17-final-build, v21-auto-import ]
   workflow_dispatch:
 
 jobs:
@@ -20,12 +20,26 @@ jobs:
       - name: Restore bundled web app
         run: |
           python3 - <<'PY'
-          import base64, gzip, pathlib
+          import base64, pathlib, zlib, hashlib
           root = pathlib.Path('app/src/main/assets')
           data = ''.join((root / f'index.html.gz.b64.part{i}').read_text().strip() for i in range(1, 8))
-          html = gzip.decompress(base64.b64decode(data))
+          raw = base64.b64decode(data)
+          # The historic gzip footer in this branch has a bad CRC. The DEFLATE
+          # payload is intact, so decode the payload without trusting the footer.
+          pos = 10
+          flg = raw[3]
+          if flg & 4:
+              xlen = int.from_bytes(raw[pos:pos+2], 'little'); pos += 2 + xlen
+          if flg & 8:
+              pos = raw.index(b'\0', pos) + 1
+          if flg & 16:
+              pos = raw.index(b'\0', pos) + 1
+          if flg & 2:
+              pos += 2
+          dec = zlib.decompressobj(-zlib.MAX_WBITS)
+          html = dec.decompress(raw[pos:-8]) + dec.flush()
           (root / 'index.html').write_bytes(html)
-          print('restored', len(html), 'bytes')
+          print('restored', len(html), 'bytes', hashlib.sha256(html).hexdigest())
           PY
       - name: Verify bundled web app
         run: |
@@ -39,5 +53,5 @@ jobs:
         run: gradle assembleDebug
       - uses: actions/upload-artifact@v4
         with:
-          name: 우리집-가계부-v17-final-apk
+          name: 우리집-가계부-v21-test-apk
           path: app/build/outputs/apk/debug/app-debug.apk
